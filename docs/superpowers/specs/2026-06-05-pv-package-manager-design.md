@@ -32,7 +32,7 @@
 | 包源 | Git 仓库 bucket（scoop 风格） | 去中心、社区可贡献，`git pull` 同步 |
 | 清单格式 | TOML | 人类友好、可注释、serde+toml 解析 |
 | 更新检测 | 分阶段：MVP 比较清单版本；预留 checkver | checkver（主动探测上游）为 Phase 2 |
-| 安装类型 | 压缩包 + 单文件 exe（MVP）；安装器 msi/inno（Phase 2） | 见 §7 关于安装器的权衡 |
+| 安装类型 | 压缩包 + 单文件 exe + 安装器 inno/msi（**均为 MVP**） | 安装器采用**解包式**（不做系统级安装），见 §7 |
 
 ### 技术选型（均为社区主流方案）
 
@@ -45,6 +45,7 @@
 | HTTP 下载 | reqwest（流式） |
 | 清单解析 | serde + toml |
 | 解压 | zip + flate2/tar |
+| 安装器解包 | msi → `msiexec /a`（Windows 原生管理式解包，不写系统）；inno → `innounp`（第三方工具，pv 按需引导下载到 PV_HOME） |
 | 校验 | sha2（sha256） |
 | 进度显示 | indicatif |
 | 错误处理 | anyhow（应用层）+ thiserror（库层） |
@@ -69,9 +70,9 @@ src/
 │   ├── mod.rs       # 安装/卸载流程编排
 │   ├── download.rs  # reqwest 下载 + 进度 + sha256 校验
 │   └── install/     # 安装策略（trait InstallStrategy + 多实现）
-│       ├── archive.rs    # 压缩包解压        (MVP)
-│       ├── single.rs     # 单文件 exe        (MVP)
-│       └── installer.rs  # msi/inno 安装器    (Phase 2)
+│       ├── archive.rs    # 压缩包解压             (MVP)
+│       ├── single.rs     # 单文件 exe             (MVP)
+│       └── installer.rs  # inno/msi 解包式安装    (MVP)
 ├── version.rs       # 多版本存储、激活版本、junction 重指向
 ├── shim.rs          # shim 代理生成
 ├── update.rs        # 更新检测（清单比较；预留 checkver trait）
@@ -142,9 +143,21 @@ bin = ["node.exe", "npm.cmd", "npx.cmd"] # 暴露为 shim 的可执行文件
 # ── 预留 / Phase 2，MVP 不实现 ──
 # [checkver]
 # github = "nodejs/node"
-# [installer]
-# silent_args = ["/S", "/DIR=$dir"]
-# uninstall   = ["$dir/uninstall.exe", "/S"]
+```
+
+**安装器（解包式）类型**（`mytool.toml`）：
+
+```toml
+name = "mytool"
+version = "3.2.1"
+type = "installer"
+installer = "inno"             # inno | msi —— 决定用哪种解包器
+[architecture.x64]
+url  = "https://example.com/mytool-3.2.1-setup.exe"
+hash = "sha256:..."
+bin  = ["mytool.exe"]
+# 解包式：下载 setup.exe/msi → 用 innounp/msiexec /a 解包到版本目录
+# 不运行系统级安装，保持绿色可卸载；此类包通常单版本使用
 ```
 
 **单文件 exe 类型**（`ripgrep.toml`）：
@@ -199,7 +212,7 @@ bin  = ["rg.exe"]
 6. 按 `type` 派发 `InstallStrategy`：
    - `archive`：解压到临时目录 →（有 `extract_dir` 则提升内层）→ 移到 `apps/<包>/<版本>/`
    - `single`：exe 直接放入 `apps/<包>/<版本>/`
-   - `installer`：(Phase 2) 静默安装到版本目录
+   - `installer`：**解包式**——`inno` 用 `innounp`、`msi` 用 `msiexec /a` 把安装器内容解包到 `apps/<包>/<版本>/`（不运行系统级安装，保持绿色可卸载）
 7. 写 `.manifest.toml` 缓存
 8. 重指 junction：`apps/<包>/current ──→ 该版本`
 9. 为 `bin` 列表生成 shim 到 `shims/`
@@ -286,20 +299,22 @@ MVP 仅实现 `WindowsPlatform`：junction crate + pv-shim.exe 复制 + 注册�
 
 ### MVP 范围
 - 平台：Windows（x64）
-- 安装类型：`archive` + `single`
+- 安装类型：`archive` + `single` + `installer`（inno/msi 解包式）
 - 命令：install / uninstall / search / list / use / shell / info / outdated / upgrade / sync / bucket
 - 更新检测：比较清单版本
 - 多版本：并存 + 永久切换 + 临时会话切换
 
 ### Phase 2（预留接口，MVP 不实现）
 - `checkver`：主动探测上游最新版本
-- `installer` 类型（msi/inno）
 - macOS / Linux 平台实现
 - arm64 / x86 架构
 
-### ⚠️ 关于安装器（msi/inno）的权衡
-用户最初希望 MVP 支持安装器类型，但**安装器与「多版本并存 + 绿色可卸载」的核心理念存在根本冲突**：安装器通常往系统全局写注册表、装到 `Program Files`，难以做到多版本并存与干净卸载。
+### 关于安装器（inno/msi）的实现方式 ✅
+安装器类型采用 **scoop 同款的「解包式」策略**，而**非**运行系统级安装：
 
-**设计决定**：将 `installer` 类型**降级为 Phase 2**，用受限策略实现（下载 → 静默安装到版本目录 → 记录卸载命令），并明确告知用户此类包可能不支持完整多版本能力。MVP 先把 `archive` 与 `single` 这两种「真·多版本」类型做扎实。
+- `inno`：用 `innounp` 解包 Inno Setup 安装器内容
+- `msi`：用 `msiexec /a`（Windows 原生管理式安装，仅解包不写系统）
 
-> 此项为设计期主动提出的权衡，待用户最终确认是否接受降级。
+解包后内容释放到 `apps/<包>/<版本>/`，与 `archive` 类型走完全相同的后续流程（shim、junction、卸载）。**因此安装器类型同样保持「绿色 + 可干净卸载」**，不破坏核心理念；这类软件通常单版本使用，但结构上仍兼容多版本模型，无需特殊处理。
+
+> `innounp` 为第三方工具，pv 在首次遇到 inno 类型包时按需引导下载到 `PV_HOME`（类似 scoop 引导 7zip/innounp 的做法）。
