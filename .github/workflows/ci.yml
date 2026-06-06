@@ -105,15 +105,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           pattern: pv-*
           merge-multiple: true
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
         with:
