@@ -48,7 +48,10 @@ impl<'a, P: Platform> VersionManager<'a, P> {
                 &target_path(&self.paths.apps, &manifest.name, bin),
             )?;
         }
-        self.platform.register_path(&self.paths.shims)?;
+        if !config.path_registered {
+            self.platform.register_path(&self.paths.shims)?;
+            config.path_registered = true;
+        }
         config.set_active_version(&manifest.name, &manifest.version);
         Ok(())
     }

@@ -12,6 +12,7 @@ use tempfile::tempdir;
 struct FakePlatform {
     links: RefCell<Vec<(PathBuf, PathBuf)>>,
     shims: RefCell<Vec<String>>,
+    path_registrations: RefCell<Vec<PathBuf>>,
 }
 
 impl Platform for FakePlatform {
@@ -42,6 +43,9 @@ impl Platform for FakePlatform {
     }
 
     fn register_path(&self, _dir: &Path) -> pv::error::Result<()> {
+        self.path_registrations
+            .borrow_mut()
+            .push(_dir.to_path_buf());
         Ok(())
     }
 
@@ -93,6 +97,31 @@ fn activates_installed_version_and_creates_shims() {
         platform.shims.borrow().as_slice(),
         &["node.exe".to_string()]
     );
+    assert_eq!(
+        platform.path_registrations.borrow().as_slice(),
+        &[paths.shims]
+    );
+    assert!(config.path_registered);
+}
+
+#[test]
+fn skips_path_registration_when_config_already_registered() {
+    let home = tempdir().expect("tempdir");
+    let paths = Paths::from_home(home.path());
+    fs::create_dir_all(paths.apps.join("node").join("20.11.0")).expect("version dir");
+    let platform = FakePlatform::default();
+    let mut config = Config {
+        path_registered: true,
+        ..Config::default()
+    };
+    let manager = VersionManager::new(paths, &platform);
+
+    manager
+        .activate(&mut config, &manifest("node", "20.11.0"))
+        .expect("activate");
+
+    assert_eq!(config.active_version("node"), Some("20.11.0"));
+    assert!(platform.path_registrations.borrow().is_empty());
 }
 
 #[test]

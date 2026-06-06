@@ -9,6 +9,8 @@ $env:PV_HOME = "$PWD\.tmp\pv-real-git"
 New-Item -ItemType Directory -Force "$env:PV_HOME\buckets\main" | Out-Null
 Copy-Item ".\tests\fixtures\bucket\main\git.toml" "$env:PV_HOME\buckets\main\git.toml"
 @"
+path_registered = true
+
 [[buckets]]
 name = "main"
 url = "local"
