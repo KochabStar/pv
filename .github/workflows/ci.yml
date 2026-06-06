@@ -77,9 +77,10 @@ jobs:
           mkdir $dir
           cp "target/${{ matrix.target }}/release/pv${{ matrix.ext }}" "$dir/"
           cp "target/${{ matrix.target }}/release/pv-shim${{ matrix.ext }}" "$dir/"
-          cp README.md LICENSE scripts/install.ps1 "$dir/" -ErrorAction SilentlyContinue
+          cp README.md "$dir/" -ErrorAction SilentlyContinue
+          cp LICENSE "$dir/" -ErrorAction SilentlyContinue
+          cp scripts/install.ps1 "$dir/" -ErrorAction SilentlyContinue
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
-
       - name: Package (Unix tar.gz)
         if: matrix.archive == 'tar.gz'
         run: |
