@@ -7,6 +7,9 @@
 # Must track .gitignore itself
 !.gitignore
 
+!.github
+!.editorconfig
+
 # Editor swap/backup files
 **/*.rs.bk
 *.swp

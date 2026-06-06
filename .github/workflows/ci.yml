@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: pv
+
+jobs:
+  # ── 测试 (Linux, 单平台即可) ──────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+  # ── 构建 + 打包 (全平台矩阵) ─────────────────────────────────
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            ext: .exe
+            archive: zip
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            ext: ""
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            ext: ""
+            archive: tar.gz
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Windows zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $dir = "${{ env.BIN_NAME }}-${{ matrix.target }}"
+          mkdir $dir
+          cp "target/${{ matrix.target }}/release/pv${{ matrix.ext }}" "$dir/"
+          cp "target/${{ matrix.target }}/release/pv-shim${{ matrix.ext }}" "$dir/"
+          cp README.md LICENSE scripts/install.ps1 "$dir/" -ErrorAction SilentlyContinue
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+
+      - name: Package (Unix tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          dir="${{ env.BIN_NAME }}-${{ matrix.target }}"
+          mkdir "$dir"
+          cp "target/${{ matrix.target }}/release/pv" "$dir/"
+          cp "target/${{ matrix.target }}/release/pv-shim" "$dir/"
+          cp README.md LICENSE "$dir/" 2>/dev/null || true
+          tar czf "$dir.tar.gz" "$dir"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BIN_NAME }}-${{ matrix.target }}
+          path: ${{ env.BIN_NAME }}-${{ matrix.target }}.${{ matrix.archive }}
+
+  # ── GitHub Release (仅 tag 推送时) ────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          body_path: ${{ github.workspace }}-CHANGELOG.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
