@@ -5,7 +5,7 @@ header = """
 body = """
 {% if version %}\
     {% if previous.version %}\
-        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/loonghao/pv/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+        ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/KochabStar/pv/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
         ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
@@ -18,7 +18,7 @@ body = """
 {% for commit in commits %}
   - {{ commit.message | split(pat="\\n") | first | trim }}\
     {% if commit.remote.username %} (@{{ commit.remote.username }}){% endif %}\
-    {% if commit.remote.pr_number %} in [#{{ commit.remote.pr_number }}](https://github.com/loonghao/pv/pull/{{ commit.remote.pr_number }}){% endif %}
+    {% if commit.remote.pr_number %} in [#{{ commit.remote.pr_number }}](https://github.com/KochabStar/pv/pull/{{ commit.remote.pr_number }}){% endif %}
 {% endfor %}
 {% endfor %}
 """
@@ -46,5 +46,5 @@ topo_order = false
 sort_commits = "oldest"
 
 [remote.github]
-owner = "loonghao"
+owner = "KochabStar"
 repo = "pv"
