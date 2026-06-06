@@ -4,6 +4,7 @@ use std::process::Command;
 
 use crate::config::{Config, Paths};
 use crate::error::{PvError, Result};
+use crate::git::resolve_git_from_env;
 use crate::manifest::Manifest;
 use crate::update::version_gt;
 
@@ -50,7 +51,8 @@ impl BucketManager {
                 source,
             })?;
         } else if !bucket_dir.exists() {
-            let status = Command::new("git")
+            let git = resolve_git_from_env(&self.paths)?;
+            let status = Command::new(&git)
                 .args(["clone", url])
                 .arg(&bucket_dir)
                 .status()
@@ -60,7 +62,7 @@ impl BucketManager {
                 })?;
             if !status.success() {
                 return Err(PvError::CommandFailed {
-                    program: "git".to_string(),
+                    program: git.display().to_string(),
                     args: vec![
                         "clone".to_string(),
                         url.to_string(),
@@ -90,7 +92,8 @@ impl BucketManager {
             if !bucket_dir.join(".git").exists() {
                 continue;
             }
-            let status = Command::new("git")
+            let git = resolve_git_from_env(&self.paths)?;
+            let status = Command::new(&git)
                 .arg("-C")
                 .arg(&bucket_dir)
                 .arg("pull")
@@ -101,8 +104,12 @@ impl BucketManager {
                 })?;
             if !status.success() {
                 return Err(PvError::CommandFailed {
-                    program: "git".to_string(),
-                    args: vec!["pull".to_string()],
+                    program: git.display().to_string(),
+                    args: vec![
+                        "-C".to_string(),
+                        bucket_dir.display().to_string(),
+                        "pull".to_string(),
+                    ],
                     status: status.to_string(),
                 });
             }
