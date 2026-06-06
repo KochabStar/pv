@@ -18,7 +18,7 @@ impl ShimConfig {
     pub fn from_toml(input: &str) -> Result<Self> {
         toml::from_str(input).map_err(|source| PvError::ManifestParse {
             path: PathBuf::from("<shim>"),
-            source,
+            source: Box::new(source),
         })
     }
 }

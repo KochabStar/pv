@@ -13,7 +13,7 @@ pub enum PvError {
     #[error("manifest parse failed for {path}: {source}")]
     ManifestParse {
         path: PathBuf,
-        source: toml::de::Error,
+        source: Box<toml::de::Error>,
     },
     #[error("manifest validation failed for {path}: {message}")]
     ManifestValidation { path: PathBuf, message: String },

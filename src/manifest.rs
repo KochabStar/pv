@@ -59,7 +59,7 @@ impl Manifest {
         })?;
         let manifest: Self = toml::from_str(&text).map_err(|source| PvError::ManifestParse {
             path: path.to_path_buf(),
-            source,
+            source: Box::new(source),
         })?;
         manifest.validate(path)?;
         Ok(manifest)

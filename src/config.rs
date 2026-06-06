@@ -23,23 +23,15 @@ pub struct BucketConfig {
     pub url: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub buckets: Vec<BucketConfig>,
     pub active_versions: BTreeMap<String, String>,
+    #[serde(default)]
     pub path_registered: bool,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            buckets: Vec::new(),
-            active_versions: BTreeMap::new(),
-            path_registered: false,
-        }
-    }
-}
 
 impl Paths {
     pub fn discover() -> Result<Self> {
@@ -97,7 +89,7 @@ impl Config {
         })?;
         toml::from_str(&text).map_err(|source| PvError::ManifestParse {
             path: paths.config_file.clone(),
-            source,
+            source: Box::new(source),
         })
     }
 

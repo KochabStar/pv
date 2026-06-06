@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::process::Command;
 
 use pv::shim::ShimConfig;
@@ -22,7 +21,7 @@ fn main() {
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let status = match Command::new(PathBuf::from(config.target))
+    let status = match Command::new(&config.target)
         .args(args)
         .status()
     {

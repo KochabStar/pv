@@ -213,7 +213,7 @@ fn merge_path_entry(user_path: &str, dir: &str) -> String {
     let normalized_dir = normalize_path_entry(dir);
     if user_path
         .split(';')
-        .any(|entry| normalize_path_entry(entry).eq_ignore_ascii_case(&normalized_dir))
+        .any(|entry| normalize_path_entry(entry).eq_ignore_ascii_case(normalized_dir))
     {
         return user_path.to_string();
     }
