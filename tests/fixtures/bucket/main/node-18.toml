@@ -1,0 +1,12 @@
+name = "node"
+version = "18.20.0"
+description = "Node.js JavaScript runtime"
+homepage = "https://nodejs.org"
+license = "MIT"
+type = "archive"
+bin = ["node.exe", "npm.cmd", "npx.cmd"]
+
+[architecture.x64]
+url = "https://example.invalid/node-18.zip"
+hash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+extract_dir = "node-v18.20.0-win-x64"

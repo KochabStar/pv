@@ -1,0 +1,11 @@
+name = "ripgrep"
+version = "14.1.0"
+description = "fast recursive search"
+homepage = "https://github.com/BurntSushi/ripgrep"
+license = "MIT"
+type = "single"
+
+[architecture.x64]
+url = "https://example.invalid/rg.exe"
+hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+bin = ["rg.exe"]
