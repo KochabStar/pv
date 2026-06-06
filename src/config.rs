@@ -32,7 +32,6 @@ pub struct Config {
     pub path_registered: bool,
 }
 
-
 impl Paths {
     pub fn discover() -> Result<Self> {
         if let Ok(home) = std::env::var("PV_HOME") {

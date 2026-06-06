@@ -21,10 +21,7 @@ fn main() {
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let status = match Command::new(&config.target)
-        .args(args)
-        .status()
-    {
+    let status = match Command::new(&config.target).args(args).status() {
         Ok(status) => status,
         Err(error) => exit_error(format!("unable to launch target: {error}")),
     };
