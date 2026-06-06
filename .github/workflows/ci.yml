@@ -108,7 +108,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
+          pattern: pv-*
+          merge-multiple: true
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
