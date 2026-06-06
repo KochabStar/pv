@@ -1,0 +1,20 @@
+# Rust build output
+/target/
+
+# All dotfiles and dot-directories (AI agent temp, IDE, OS, env)
+.*
+
+# Must track .gitignore itself
+!.gitignore
+
+# Editor swap/backup files
+**/*.rs.bk
+*.swp
+*.swo
+*~
+
+# OS generated files (non-dot)
+Thumbs.db
+
+# IntelliJ project files (may not start with dot)
+*.iml
