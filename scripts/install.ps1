@@ -1,5 +1,5 @@
 param(
-    [string] $Repo = "OWNER/pv",
+    [string] $Repo = "KochabStar/pv",
     [string] $Version = "latest",
     [string] $InstallDir = (Join-Path $env:USERPROFILE ".pv"),
     [string] $AssetPattern = "windows|pc-windows-msvc|x86_64",
