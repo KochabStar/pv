@@ -5,7 +5,7 @@ param(
     [string] $AssetPattern = "windows|pc-windows-msvc|x86_64",
     [string] $DownloadUrl = "",
     [string] $MainBucketUrl = "",
-    [string] $MainBucketGitUrl = "local",
+    [string] $MainBucketGitUrl = "https://github.com/loonghao/pv-bucket",
     [switch] $NoPathUpdate
 )
 
@@ -170,7 +170,8 @@ function Install-MainBucket {
     param(
         [string] $InstallDir,
         [string] $ExtractedRelease,
-        [string] $MainBucketUrl
+        [string] $MainBucketUrl,
+        [string] $MainBucketGitUrl
     )
 
     $bucketDir = Join-Path $InstallDir "buckets\main"
@@ -183,7 +184,24 @@ function Install-MainBucket {
         }
     }
 
+    # 路径 1（优先）：git clone（后续 pv sync 可直接 git pull）
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Write-Status "git found, cloning $MainBucketGitUrl"
+        try {
+            git clone $MainBucketGitUrl $bucketDir
+            if ($LASTEXITCODE -eq 0) {
+                Write-Status "main bucket cloned via git"
+                return
+            }
+            Write-Status "git clone failed (exit $LASTEXITCODE), falling back to zip"
+        } catch {
+            Write-Status "git clone failed ($_), falling back to zip"
+        }
+    }
+
+    # 路径 2（回退）：zip 下载（无需 git）
     if ($MainBucketUrl) {
+        Write-Status "downloading main bucket zip"
         $bucketZip = Join-Path ([IO.Path]::GetTempPath()) "pv-main-bucket-$([Guid]::NewGuid()).zip"
         Invoke-DownloadFile -Url $MainBucketUrl -OutFile $bucketZip
         $bucketExtract = Expand-Zip -ZipPath $bucketZip
@@ -195,6 +213,7 @@ function Install-MainBucket {
             throw "Main bucket archive does not contain a bucket directory"
         }
         Copy-DirectoryContents -Source $bucket.FullName -Destination $bucketDir
+        Write-Status "main bucket installed via zip (pv sync won't update it; after installing git, run: git -C `"$bucketDir`" init ; git -C `"$bucketDir`" remote add origin $MainBucketGitUrl ; git -C `"$bucketDir`" fetch origin ; git -C `"$bucketDir`" reset --hard origin/main)"
         return
     }
 
@@ -295,7 +314,7 @@ function Install-Pv {
     $extractedRelease = Expand-Zip -ZipPath $releaseZip
 
     Install-PvBinaries -ExtractedRelease $extractedRelease -BinDir $binDir
-    Install-MainBucket -InstallDir $root -ExtractedRelease $extractedRelease -MainBucketUrl $script:MainBucketUrl
+    Install-MainBucket -InstallDir $root -ExtractedRelease $extractedRelease -MainBucketUrl $script:MainBucketUrl -MainBucketGitUrl $MainBucketGitUrl
     Write-PvConfig -InstallDir $root -MainBucketGitUrl $MainBucketGitUrl
 
     if (-not $NoPathUpdate) {
