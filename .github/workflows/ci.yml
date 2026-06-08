@@ -6,6 +6,8 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
+  release:
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
@@ -93,9 +95,9 @@ jobs:
           name: ${{ env.BIN_NAME }}-${{ matrix.target }}
           path: ${{ env.BIN_NAME }}-${{ matrix.target }}.${{ matrix.archive }}
 
-  # ── GitHub Release (仅 tag 推送时) ────────────────────────────
+  # ── GitHub Release (tag 推送或网页发布 Release 时) ─────────────
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.event.release.tag_name, 'v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -121,6 +123,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
           files: artifacts/**/*
           body_path: CHANGELOG.md
           generate_release_notes: true
