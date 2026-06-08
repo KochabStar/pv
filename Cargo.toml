@@ -37,7 +37,7 @@ toml = "0.8"
 unrar-ng = "0.7"
 walkdir = "2.5"
 which = "6.0"
-zip = "2.1"
+zip = "8.6"
 
 [dev-dependencies]
 assert_cmd = "2.0"
