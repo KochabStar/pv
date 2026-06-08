@@ -5,7 +5,7 @@ param(
     [string] $AssetPattern = "windows|pc-windows-msvc|x86_64",
     [string] $DownloadUrl = "",
     [string] $MainBucketUrl = "",
-    [string] $MainBucketGitUrl = "https://github.com/loonghao/pv-bucket",
+    [string] $MainBucketGitUrl = "https://github.com/KochabStar/pv-bucket.git",
     [switch] $NoPathUpdate
 )
 

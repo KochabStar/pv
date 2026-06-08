@@ -9,6 +9,9 @@ fn install_script_bootstraps_release_path_and_main_bucket() {
 
     assert!(script.contains("param("));
     assert!(script.contains("[string] $Repo"));
+    assert!(script
+        .contains("[string] $MainBucketGitUrl = \"https://github.com/KochabStar/pv-bucket.git\""));
+    assert!(!script.contains("https://github.com/loonghao/pv-bucket"));
     assert!(script.contains("pv.exe"));
     assert!(script.contains("pv-shim.exe"));
     assert!(script.contains("Expand-Archive"));
@@ -54,6 +57,8 @@ fn install_script_installs_from_local_release_zip_without_path_update() {
         .arg(&release_zip)
         .arg("-InstallDir")
         .arg(&install_dir)
+        .arg("-MainBucketGitUrl")
+        .arg("")
         .arg("-NoPathUpdate")
         .output()
         .expect("run install script");

@@ -2,7 +2,7 @@
 
 > 跨平台包管理器与版本管理器 — 轻量、快速、易用
 
-[![CI](https://github.com/loonghao/pv/actions/workflows/ci.yml/badge.svg)](https://github.com/loonghao/pv/actions/workflows/ci.yml)
+[![CI](https://github.com/KochabStar/pv/actions/workflows/ci.yml/badge.svg)](https://github.com/KochabStar/pv/actions/workflows/ci.yml)
 
 **pv** 是一个用 Rust 编写的命令行工具，帮助你安装、切换、管理开发工具的不同版本。灵感来源于 [asdf](https://asdf-vm.com/) 和 [scoop](https://scoop.sh/)，通过 bucket 机制统一管理软件源。
 
@@ -21,7 +21,7 @@
 ### Windows（PowerShell）
 
 ```powershell
-irm https://raw.githubusercontent.com/loonghao/pv/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/KochabStar/pv/main/scripts/install.ps1 | iex
 ```
 
 安装完成后重启终端，即可使用：
@@ -34,11 +34,11 @@ pv list
 
 ### Linux / macOS
 
-从 [GitHub Releases](https://github.com/loonghao/pv/releases) 下载对应平台的二进制文件：
+从 [GitHub Releases](https://github.com/KochabStar/pv/releases) 下载对应平台的二进制文件：
 
 ```bash
 # 以 Linux x64 为例
-curl -L https://github.com/loonghao/pv/releases/latest/download/pv-x86_64-unknown-linux-gnu.tar.gz -o pv.tar.gz
+curl -L https://github.com/KochabStar/pv/releases/latest/download/pv-x86_64-unknown-linux-gnu.tar.gz -o pv.tar.gz
 tar xzf pv.tar.gz
 sudo cp pv-x86_64-unknown-linux-gnu/pv /usr/local/bin/
 sudo cp pv-x86_64-unknown-linux-gnu/pv-shim /usr/local/bin/
@@ -102,7 +102,7 @@ pv use node@20               # 切换到 20.x
 ```toml
 [[buckets]]
 name = "main"
-url = "https://github.com/loonghao/pv-bucket"
+url = "https://github.com/KochabStar/pv-bucket.git"
 
 # 也可添加自定义 bucket
 [[buckets]]
