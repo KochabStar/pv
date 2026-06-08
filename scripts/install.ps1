@@ -36,8 +36,56 @@ function Invoke-DownloadFile {
         return
     }
 
+    if (Get-Command aria2c -ErrorAction SilentlyContinue) {
+        Write-Status "downloading with aria2 $Url"
+        $outDir = [IO.Path]::GetDirectoryName($OutFile)
+        $outName = [IO.Path]::GetFileName($OutFile)
+        aria2c --allow-overwrite=true --auto-file-renaming=false --continue=true --dir "$outDir" --out "$outName" "$Url"
+        if ($LASTEXITCODE -ne 0) {
+            throw "aria2 download failed with exit code $LASTEXITCODE"
+        }
+        return
+    }
+
     Write-Status "downloading $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+    Invoke-WebRequestStream -Url $Url -OutFile $OutFile
+}
+
+function Invoke-WebRequestStream {
+    param(
+        [string] $Url,
+        [string] $OutFile
+    )
+
+    Add-Type -AssemblyName System.Net.Http
+    $client = [System.Net.Http.HttpClient]::new()
+    $response = $client.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+    $response.EnsureSuccessStatusCode() | Out-Null
+
+    $total = $response.Content.Headers.ContentLength
+    $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+    $outputStream = [IO.File]::Open($OutFile, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $buffer = New-Object byte[] 81920
+    $readTotal = 0L
+
+    try {
+        while (($read = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $outputStream.Write($buffer, 0, $read)
+            $readTotal += $read
+            if ($total) {
+                $percent = [Math]::Min(100, [int](($readTotal * 100) / $total))
+                Write-Progress -Activity "Downloading pv asset" -Status "$readTotal / $total bytes" -PercentComplete $percent
+            } else {
+                Write-Progress -Activity "Downloading pv asset" -Status "$readTotal bytes" -PercentComplete -1
+            }
+        }
+    } finally {
+        Write-Progress -Activity "Downloading pv asset" -Completed
+        $outputStream.Dispose()
+        $inputStream.Dispose()
+        $response.Dispose()
+        $client.Dispose()
+    }
 }
 
 function Resolve-LocalFilePath {
