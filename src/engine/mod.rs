@@ -610,7 +610,7 @@ fn ls_remote_npm(package: &str) -> Result<Vec<String>> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let versions: Vec<String> = serde_json::from_str(&stdout)
-        .map_err(|_| PvError::Platform(format!("无法解析 npm 返回的版本列表")))?;
+        .map_err(|_| PvError::Platform("无法解析 npm 返回的版本列表".to_string()))?;
 
     Ok(versions)
 }
