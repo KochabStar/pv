@@ -105,6 +105,7 @@ async fn full_single_package_lifecycle() {
         }],
         active_versions: Default::default(),
         path_registered: false,
+        download: Default::default(),
     };
     let platform = FakePlatform::default();
     let mut engine = Engine::new(paths.clone(), config, &platform);

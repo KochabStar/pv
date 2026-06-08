@@ -39,6 +39,40 @@ fn creates_directories_and_saves_config() {
 }
 
 #[test]
+fn default_download_config_disables_aria2() {
+    let config = Config::default();
+
+    assert!(!config.download.aria2_enabled);
+    assert_eq!(config.download.aria2_split, 5);
+    assert_eq!(config.download.aria2_max_connection_per_server, 5);
+    assert_eq!(config.download.aria2_min_split_size, "5M");
+}
+
+#[test]
+fn loads_download_config_from_toml() {
+    let home = tempdir().expect("tempdir");
+    let paths = Paths::from_home(home.path());
+    std::fs::write(
+        &paths.config_file,
+        r#"
+[download]
+aria2_enabled = true
+aria2_split = 8
+aria2_max_connection_per_server = 4
+aria2_min_split_size = "10M"
+"#,
+    )
+    .expect("write config");
+
+    let config = Config::load_or_default(&paths).expect("load config");
+
+    assert!(config.download.aria2_enabled);
+    assert_eq!(config.download.aria2_split, 8);
+    assert_eq!(config.download.aria2_max_connection_per_server, 4);
+    assert_eq!(config.download.aria2_min_split_size, "10M");
+}
+
+#[test]
 fn rejects_duplicate_bucket_names() {
     let mut config = Config::default();
 
@@ -60,6 +94,7 @@ fn removes_bucket_by_name() {
         }],
         active_versions: Default::default(),
         path_registered: false,
+        download: Default::default(),
     };
 
     config.remove_bucket("main").expect("remove bucket");

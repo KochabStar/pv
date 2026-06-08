@@ -96,6 +96,7 @@ async fn installs_uses_lists_outdates_and_uninstalls_single_file_package() {
         }],
         active_versions: Default::default(),
         path_registered: false,
+        download: Default::default(),
     };
     let platform = FakePlatform::default();
     let mut engine = Engine::new(paths.clone(), config, &platform);

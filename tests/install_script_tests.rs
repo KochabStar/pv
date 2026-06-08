@@ -25,6 +25,15 @@ fn install_script_updates_path_without_void_array_reverse() {
     assert!(script.contains("for ($index = $Dirs.Count - 1; $index -ge 0; $index--)"));
 }
 
+#[test]
+fn install_script_supports_aria2_and_write_progress() {
+    let script = std::fs::read_to_string("scripts/install.ps1").expect("read install script");
+
+    assert!(script.contains("aria2c"));
+    assert!(script.contains("Write-Progress"));
+    assert!(script.contains("Invoke-WebRequestStream"));
+}
+
 #[cfg(windows)]
 #[test]
 fn install_script_installs_from_local_release_zip_without_path_update() {

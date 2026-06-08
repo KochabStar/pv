@@ -1,7 +1,9 @@
 use std::fs;
+use std::path::Path;
 use std::thread;
 
-use pv::engine::download::{download_to_cache, verify_sha256};
+use pv::config::DownloadConfig;
+use pv::engine::download::{build_aria2_command, download_to_cache, verify_sha256};
 use tempfile::tempdir;
 use tiny_http::{Response, Server};
 
@@ -43,10 +45,63 @@ async fn downloads_from_local_http_server_and_checks_hash() {
         dir.path(),
         "payload.txt",
         "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        &pv::engine::download::DownloadOptions::from_config(&DownloadConfig::default()),
     )
     .await
     .expect("download");
 
     handle.join().expect("server thread");
     assert_eq!(fs::read(file).expect("read file"), b"hello");
+}
+
+#[tokio::test]
+async fn copies_local_file_url_to_cache_and_checks_hash() {
+    let source_dir = tempdir().expect("source tempdir");
+    let cache_dir = tempdir().expect("cache tempdir");
+    let source = source_dir.path().join("payload.txt");
+    fs::write(&source, b"hello").expect("write payload");
+
+    let file = download_to_cache(
+        &format!("file://{}", source.display()),
+        cache_dir.path(),
+        "payload.txt",
+        "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        &pv::engine::download::DownloadOptions::from_config(&DownloadConfig::default()),
+    )
+    .await
+    .expect("download");
+
+    assert_eq!(fs::read(file).expect("read file"), b"hello");
+}
+
+#[test]
+fn builds_aria2_command_with_scoop_style_options() {
+    let options = pv::engine::download::DownloadOptions {
+        aria2_enabled: true,
+        aria2_split: 8,
+        aria2_max_connection_per_server: 4,
+        aria2_min_split_size: "10M".to_string(),
+    };
+
+    let command = build_aria2_command(
+        "https://example.invalid/tool.zip",
+        Path::new("C:/cache"),
+        "tool.zip",
+        &options,
+    );
+
+    assert_eq!(command.program, "aria2c");
+    assert!(command.args.contains(&"--allow-overwrite=true".to_string()));
+    assert!(command
+        .args
+        .contains(&"--auto-file-renaming=false".to_string()));
+    assert!(command.args.contains(&"--continue=true".to_string()));
+    assert!(command.args.contains(&"--split=8".to_string()));
+    assert!(command
+        .args
+        .contains(&"--max-connection-per-server=4".to_string()));
+    assert!(command.args.contains(&"--min-split-size=10M".to_string()));
+    assert!(command
+        .args
+        .contains(&"https://example.invalid/tool.zip".to_string()));
 }

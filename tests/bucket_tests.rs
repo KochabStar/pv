@@ -51,6 +51,7 @@ fn scans_and_searches_bucket_manifests() {
         }],
         active_versions: Default::default(),
         path_registered: false,
+        download: Default::default(),
     };
     let manager = BucketManager::new(paths, config);
 
@@ -75,6 +76,7 @@ fn finds_latest_or_requested_manifest() {
         }],
         active_versions: Default::default(),
         path_registered: false,
+        download: Default::default(),
     };
     let manager = BucketManager::new(paths, config);
 
