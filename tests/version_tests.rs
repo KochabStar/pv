@@ -80,6 +80,7 @@ fn activates_installed_version_and_creates_shims() {
     let paths = Paths::from_home(home.path());
     let version_dir = paths.apps.join("node").join("20.11.0");
     fs::create_dir_all(&version_dir).expect("version dir");
+    fs::write(version_dir.join("node.exe"), b"node").expect("bin");
     let platform = FakePlatform::default();
     let mut config = Config::default();
     let manager = VersionManager::new(paths.clone(), &platform);
@@ -108,7 +109,9 @@ fn activates_installed_version_and_creates_shims() {
 fn skips_path_registration_when_config_already_registered() {
     let home = tempdir().expect("tempdir");
     let paths = Paths::from_home(home.path());
-    fs::create_dir_all(paths.apps.join("node").join("20.11.0")).expect("version dir");
+    let version_dir = paths.apps.join("node").join("20.11.0");
+    fs::create_dir_all(&version_dir).expect("version dir");
+    fs::write(version_dir.join("node.exe"), b"node").expect("bin");
     let platform = FakePlatform::default();
     let mut config = Config {
         path_registered: true,
@@ -143,4 +146,22 @@ fn lists_installed_versions_with_active_marker() {
         .versions
         .iter()
         .any(|version| version.version == "20.11.0" && version.active));
+}
+
+#[test]
+fn activation_rejects_missing_bin_before_creating_shim() {
+    let home = tempdir().expect("tempdir");
+    let paths = Paths::from_home(home.path());
+    fs::create_dir_all(paths.apps.join("node").join("20.11.0")).expect("version dir");
+    let platform = FakePlatform::default();
+    let mut config = Config::default();
+    let manager = VersionManager::new(paths, &platform);
+
+    let error = manager
+        .activate(&mut config, &manifest("node", "20.11.0"))
+        .expect_err("missing bin should fail activation");
+
+    assert!(error.to_string().contains("node.exe"));
+    assert!(platform.shims.borrow().is_empty());
+    assert_eq!(config.active_version("node"), None);
 }

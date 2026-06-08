@@ -37,6 +37,15 @@ impl<'a, P: Platform> VersionManager<'a, P> {
                 version: manifest.version.clone(),
             });
         }
+        for bin in manifest.effective_bins() {
+            let bin_path = version_dir.join(bin);
+            if !bin_path.exists() {
+                return Err(PvError::Platform(format!(
+                    "package bin does not exist after install: {}",
+                    bin_path.display()
+                )));
+            }
+        }
 
         let current = self.paths.apps.join(&manifest.name).join("current");
         self.platform.make_active_link(&version_dir, &current)?;
