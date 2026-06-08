@@ -105,7 +105,36 @@ fn search_formats_results_as_readable_table() {
 }
 
 #[test]
+#[cfg(windows)]
 fn install_output_mentions_resolved_package_version() {
+    let home = temp_home_with_ripgrep_manifest();
+
+    let mut cmd = Command::cargo_bin("pv").expect("pv binary is built");
+    cmd.env("PV_HOME", home.path())
+        .arg("install")
+        .arg("ripgrep")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Installing ripgrep@14.1.0"))
+        .stdout(predicate::str::contains("Installed ripgrep@14.1.0"));
+}
+
+#[test]
+#[cfg(not(windows))]
+fn install_reports_unsupported_platform_on_non_windows() {
+    let home = temp_home_with_ripgrep_manifest();
+
+    let mut cmd = Command::cargo_bin("pv").expect("pv binary is built");
+    cmd.env("PV_HOME", home.path())
+        .arg("install")
+        .arg("ripgrep")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("Installing ripgrep@14.1.0"))
+        .stderr(predicate::str::contains("Windows MVP only"));
+}
+
+fn temp_home_with_ripgrep_manifest() -> tempfile::TempDir {
     let home = tempfile::tempdir().expect("tempdir");
     let paths = pv::config::Paths::from_home(home.path());
     let bucket = paths.buckets.join("main");
@@ -124,14 +153,7 @@ fn install_output_mentions_resolved_package_version() {
     config.path_registered = true;
     config.save(&paths).expect("save config");
 
-    let mut cmd = Command::cargo_bin("pv").expect("pv binary is built");
-    cmd.env("PV_HOME", home.path())
-        .arg("install")
-        .arg("ripgrep")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Installing ripgrep@14.1.0"))
-        .stdout(predicate::str::contains("Installed ripgrep@14.1.0"));
+    home
 }
 
 fn write_single_manifest(path: &Path, name: &str, version: &str, source: &Path, hash: &str) {
