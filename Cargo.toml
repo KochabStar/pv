@@ -24,7 +24,7 @@ dirs = "5.0"
 flate2 = "1.0"
 futures-util = "0.3"
 indicatif = "0.17"
-junction = "1.0"
+junction = "2.0"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "blocking"] }
 semver = "1.0"
 serde_json = "1.0"
