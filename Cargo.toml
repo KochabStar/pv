@@ -33,7 +33,7 @@ sha2 = "0.10"
 tar = "0.4"
 thiserror = "1.0"
 tokio = { version = "1.0", features = ["fs", "io-util", "macros", "process", "rt-multi-thread"] }
-toml = "0.8"
+toml = "1.1"
 unrar-ng = "0.7"
 walkdir = "2.5"
 which = "6.0"
