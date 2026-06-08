@@ -2,9 +2,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use serde::Deserialize;
+
 use crate::bucket::BucketManager;
 use crate::config::{Config, Paths};
-use crate::engine::download::download_to_cache;
+use crate::engine::download::{download_to_cache, DownloadOptions};
 use crate::engine::install::archive::ArchiveInstallStrategy;
 use crate::engine::install::installer::InstallerInstallStrategy;
 use crate::engine::install::npm::NpmInstallStrategy;
@@ -53,18 +55,38 @@ impl<'a, P: Platform> Engine<'a, P> {
             .find_manifest(&spec.name, spec.version.as_deref())?;
         let version_dir = self.paths.apps.join(&manifest.name).join(&manifest.version);
 
+        crate::terminal::install_start(&manifest.name, &manifest.version);
         if !version_dir.exists() {
             let arch = manifest.x64().expect("x64 architecture exists");
             let source_name = source_file_name(&arch.url);
-            let source =
-                download_to_cache(&arch.url, &self.paths.cache, &source_name, &arch.hash).await?;
+            let download_options = DownloadOptions::from_config(&self.config.download);
+            let source = download_to_cache(
+                &arch.url,
+                &self.paths.cache,
+                &source_name,
+                &arch.hash,
+                &download_options,
+            )
+            .await?;
+            let spinner = crate::terminal::spinner(format!(
+                "Installing {}@{}",
+                manifest.name, manifest.version
+            ));
             install_manifest(&manifest, &source, &version_dir, &self.paths.home)?;
+            spinner.finish_and_clear();
             write_installed_manifest(&manifest, &self.paths.apps.join(&manifest.name))?;
+        } else {
+            crate::terminal::already_installed(&manifest.name, &manifest.version);
         }
 
+        let spinner =
+            crate::terminal::spinner(format!("Activating {}@{}", manifest.name, manifest.version));
         VersionManager::new(self.paths.clone(), self.platform)
             .activate(&mut self.config, &manifest)?;
-        self.config.save(&self.paths)
+        spinner.finish_and_clear();
+        self.config.save(&self.paths)?;
+        crate::terminal::install_success(&manifest.name, &manifest.version);
+        Ok(())
     }
 
     /// 安装 npm registry 包
@@ -72,22 +94,30 @@ impl<'a, P: Platform> Engine<'a, P> {
         let resolved_version = resolve_npm_version(package, version)?;
         let version_dir = self.paths.apps.join(package).join(&resolved_version);
 
+        crate::terminal::install_start(package, &resolved_version);
         if !version_dir.exists() {
             // 先构造临时 manifest（bin 列表待扫描后填充）
             let temp_bins = vec![format!("{}.cmd", package)];
             let manifest = Manifest::npm_virtual(package, &resolved_version, temp_bins);
 
             let dummy_source = self.paths.cache.join("_npm_placeholder");
+            let spinner =
+                crate::terminal::spinner(format!("Installing {package}@{resolved_version}"));
             install_manifest(&manifest, &dummy_source, &version_dir, &self.paths.home)?;
+            spinner.finish_and_clear();
 
             // 扫描 npm 安装后实际产生的可执行文件
             let actual_bins = scan_npm_bins(&version_dir)?;
             let manifest = Manifest::npm_virtual(package, &resolved_version, actual_bins);
             write_installed_manifest(&manifest, &self.paths.apps.join(package))?;
 
+            let spinner =
+                crate::terminal::spinner(format!("Activating {package}@{resolved_version}"));
             VersionManager::new(self.paths.clone(), self.platform)
                 .activate(&mut self.config, &manifest)?;
+            spinner.finish_and_clear();
         } else {
+            crate::terminal::already_installed(package, &resolved_version);
             // 已安装：从缓存清单读取 bin 列表
             let manifest_path = self.paths.apps.join(package).join(".manifest.toml");
             let manifest = if manifest_path.exists() {
@@ -95,11 +125,16 @@ impl<'a, P: Platform> Engine<'a, P> {
             } else {
                 Manifest::npm_virtual(package, &resolved_version, Vec::new())
             };
+            let spinner =
+                crate::terminal::spinner(format!("Activating {package}@{resolved_version}"));
             VersionManager::new(self.paths.clone(), self.platform)
                 .activate(&mut self.config, &manifest)?;
+            spinner.finish_and_clear();
         }
 
-        self.config.save(&self.paths)
+        self.config.save(&self.paths)?;
+        crate::terminal::install_success(package, &resolved_version);
+        Ok(())
     }
 
     pub fn use_version(&mut self, input: &str) -> Result<()> {
@@ -127,6 +162,10 @@ impl<'a, P: Platform> Engine<'a, P> {
     }
 
     pub fn search(&self, keyword: &str) -> Result<Vec<crate::bucket::SearchResult>> {
+        if let Some(package) = keyword.strip_prefix("npm:") {
+            return search_npm(package);
+        }
+
         BucketManager::new(self.paths.clone(), self.config.clone()).search(keyword)
     }
 
@@ -168,6 +207,10 @@ impl<'a, P: Platform> Engine<'a, P> {
                 .await
         } else {
             let outdated = self.outdated()?;
+            if outdated.is_empty() {
+                crate::terminal::already_up_to_date();
+                return Ok(());
+            }
             for item in outdated {
                 self.install(&format!("{}@{}", item.package, item.available))
                     .await?;
@@ -445,9 +488,8 @@ fn resolve_npm_version(package: &str, constraint: Option<&str>) -> Result<String
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     // 解析 {"latest": "8.57.0", ...}
-    let json: serde_json::Value = serde_json::from_str(&stdout).map_err(|_| {
-        PvError::Platform(format!("无法解析 npm 返回的 dist-tags: {stdout}"))
-    })?;
+    let json: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|_| PvError::Platform(format!("无法解析 npm 返回的 dist-tags: {stdout}")))?;
 
     json["latest"]
         .as_str()
@@ -543,9 +585,9 @@ fn ls_remote_npm(package: &str) -> Result<Vec<String>> {
     #[cfg(not(windows))]
     const NPM: &str = "npm";
 
-    let npm = which::which(NPM).map_err(|_| PvError::Platform(
-        "npm 未找到。请先安装 Node.js：\n  pv install node".to_string(),
-    ))?;
+    let npm = which::which(NPM).map_err(|_| {
+        PvError::Platform("npm 未找到。请先安装 Node.js：\n  pv install node".to_string())
+    })?;
 
     let output = Command::new(&npm)
         .arg("view")
@@ -567,9 +609,64 @@ fn ls_remote_npm(package: &str) -> Result<Vec<String>> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let versions: Vec<String> = serde_json::from_str(&stdout).map_err(|_| {
-        PvError::Platform(format!("无法解析 npm 返回的版本列表"))
-    })?;
+    let versions: Vec<String> = serde_json::from_str(&stdout)
+        .map_err(|_| PvError::Platform(format!("无法解析 npm 返回的版本列表")))?;
 
     Ok(versions)
+}
+
+#[derive(Debug, Deserialize)]
+struct NpmSearchPackage {
+    name: String,
+    version: String,
+    #[serde(default)]
+    description: Option<String>,
+}
+
+fn search_npm(keyword: &str) -> Result<Vec<crate::bucket::SearchResult>> {
+    let keyword = keyword.trim();
+    if keyword.is_empty() {
+        return Err(PvError::InvalidPackageSpec("npm:".to_string()));
+    }
+
+    #[cfg(windows)]
+    const NPM: &str = "npm.cmd";
+    #[cfg(not(windows))]
+    const NPM: &str = "npm";
+
+    let npm = find_npm()?;
+    let output = Command::new(&npm)
+        .arg("search")
+        .arg(keyword)
+        .arg("--json")
+        .arg("--searchlimit=20")
+        .env("NPM_CONFIG_UPDATE_NOTIFIER", "false")
+        .output()
+        .map_err(|source| PvError::Io {
+            path: Path::new(NPM).to_path_buf(),
+            source,
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(PvError::Platform(format!(
+            "npm search failed for {keyword}: {stderr}"
+        )));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let packages: Vec<NpmSearchPackage> = serde_json::from_str(&stdout)
+        .map_err(|_| PvError::Platform(format!("无法解析 npm 返回的搜索结果: {stdout}")))?;
+
+    Ok(packages
+        .into_iter()
+        .map(|package| crate::bucket::SearchResult {
+            name: package.name,
+            version: package.version,
+            description: package
+                .description
+                .filter(|description| !description.is_empty()),
+            path: PathBuf::from("npm"),
+        })
+        .collect())
 }

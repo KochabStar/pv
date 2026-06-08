@@ -8,5 +8,6 @@ pub mod manifest;
 pub mod package;
 pub mod platform;
 pub mod shim;
+pub mod terminal;
 pub mod update;
 pub mod version;

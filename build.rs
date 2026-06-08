@@ -8,7 +8,8 @@ fn main() {
         return;
     }
 
-    let manifest = PathBuf::from("windows-app.manifest")
+    let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap())
+        .join("windows-app.manifest")
         .canonicalize()
         .expect("windows-app.manifest exists");
     let manifest_arg = format!("/MANIFESTINPUT:{}", manifest.display());

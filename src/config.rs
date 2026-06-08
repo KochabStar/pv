@@ -23,6 +23,26 @@ pub struct BucketConfig {
     pub url: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DownloadConfig {
+    pub aria2_enabled: bool,
+    pub aria2_split: u32,
+    pub aria2_max_connection_per_server: u32,
+    pub aria2_min_split_size: String,
+}
+
+impl Default for DownloadConfig {
+    fn default() -> Self {
+        Self {
+            aria2_enabled: false,
+            aria2_split: 5,
+            aria2_max_connection_per_server: 5,
+            aria2_min_split_size: "5M".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -30,6 +50,7 @@ pub struct Config {
     pub active_versions: BTreeMap<String, String>,
     #[serde(default)]
     pub path_registered: bool,
+    pub download: DownloadConfig,
 }
 
 impl Paths {
