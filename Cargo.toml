@@ -27,6 +27,7 @@ indicatif = "0.17"
 junction = "1.0"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "blocking"] }
 semver = "1.0"
+serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
 tar = "0.4"
@@ -35,6 +36,7 @@ tokio = { version = "1.0", features = ["fs", "io-util", "macros", "process", "rt
 toml = "0.8"
 unrar-ng = "0.7"
 walkdir = "2.5"
+which = "6.0"
 zip = "2.1"
 
 [dev-dependencies]

@@ -21,6 +21,14 @@ pub enum Commands {
     Upgrade(UpgradeArg),
     Sync,
     Bucket(BucketCommand),
+    /// 管理下载缓存
+    Cache(CacheCommand),
+    /// 清理旧版本
+    Cleanup(CleanupArg),
+    /// 列出远程可用版本
+    LsRemote(LsRemoteArg),
+    /// 显示安装路径
+    Where(WhereArg),
 }
 
 #[derive(Debug, Args)]
@@ -53,6 +61,8 @@ pub struct UpgradeArg {
     pub package: Option<String>,
 }
 
+// ── Bucket ──
+
 #[derive(Debug, Subcommand)]
 pub enum BucketSubcommand {
     Add(BucketAddArg),
@@ -75,6 +85,49 @@ pub struct BucketAddArg {
 #[derive(Debug, Args)]
 pub struct BucketRemoveArg {
     pub name: String,
+}
+
+// ── Cache ──
+
+#[derive(Debug, Subcommand)]
+pub enum CacheSubcommand {
+    /// 显示缓存大小和路径
+    Show,
+    /// 清空所有缓存
+    Clean,
+}
+
+#[derive(Debug, Args)]
+pub struct CacheCommand {
+    #[command(subcommand)]
+    pub command: CacheSubcommand,
+}
+
+// ── Cleanup ──
+
+#[derive(Debug, Args)]
+pub struct CleanupArg {
+    /// 只清理指定包
+    pub package: Option<String>,
+    /// 预览模式，不实际删除
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+// ── LsRemote ──
+
+#[derive(Debug, Args)]
+pub struct LsRemoteArg {
+    /// 包名，支持 npm: 前缀
+    pub package: String,
+}
+
+// ── Where ──
+
+#[derive(Debug, Args)]
+pub struct WhereArg {
+    /// 包名
+    pub package: String,
 }
 
 pub async fn run() -> Result<()> {
@@ -143,6 +196,17 @@ pub async fn run() -> Result<()> {
             println!("sync complete");
         }
         Commands::Bucket(arg) => handle_bucket_command(arg).await?,
+        Commands::Cache(arg) => match arg.command {
+            CacheSubcommand::Show => engine.cache_show()?,
+            CacheSubcommand::Clean => engine.cache_clean()?,
+        },
+        Commands::Cleanup(arg) => engine.cleanup(arg.package.as_deref(), arg.dry_run)?,
+        Commands::LsRemote(arg) => {
+            for version in engine.ls_remote(&arg.package)? {
+                println!("{version}");
+            }
+        }
+        Commands::Where(arg) => engine.where_is(&arg.package)?,
     }
 
     Ok(())

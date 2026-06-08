@@ -191,6 +191,11 @@ impl BucketManager {
         }
         Ok(paths)
     }
+
+    /// 公开版本：供 `ls-remote` 等命令使用
+    pub fn manifest_paths_public(&self) -> Result<Vec<PathBuf>> {
+        self.manifest_paths()
+    }
 }
 
 fn collect_toml_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<()> {

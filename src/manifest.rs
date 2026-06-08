@@ -12,6 +12,9 @@ pub enum InstallType {
     Archive,
     Single,
     Installer,
+    /// npm registry 包，通过 npm CLI 安装，无需 url/hash/architecture
+    #[serde(rename = "npm")]
+    Npm,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,17 +82,20 @@ impl Manifest {
                 message: "version is required".to_string(),
             });
         }
-        if self.architecture.x64.url.trim().is_empty() {
-            return Err(PvError::ManifestValidation {
-                path,
-                message: "architecture.x64.url is required".to_string(),
-            });
-        }
-        if self.architecture.x64.hash.trim().is_empty() {
-            return Err(PvError::ManifestValidation {
-                path,
-                message: "architecture.x64.hash is required".to_string(),
-            });
+        // Npm 类型不需要 url/hash/architecture 字段
+        if self.install_type != InstallType::Npm {
+            if self.architecture.x64.url.trim().is_empty() {
+                return Err(PvError::ManifestValidation {
+                    path,
+                    message: "architecture.x64.url is required".to_string(),
+                });
+            }
+            if self.architecture.x64.hash.trim().is_empty() {
+                return Err(PvError::ManifestValidation {
+                    path,
+                    message: "architecture.x64.hash is required".to_string(),
+                });
+            }
         }
         if self.effective_bins().is_empty() {
             return Err(PvError::ManifestValidation {
@@ -121,5 +127,28 @@ impl Manifest {
     pub fn to_toml(&self) -> Result<String> {
         toml::to_string_pretty(self)
             .map_err(|error| PvError::Platform(format!("manifest serialization failed: {error}")))
+    }
+
+    /// 为 npm registry 包构造虚拟 Manifest（无需 TOML 清单文件）
+    pub fn npm_virtual(name: &str, version: &str, bins: Vec<String>) -> Self {
+        Self {
+            name: name.to_string(),
+            version: version.to_string(),
+            description: None,
+            homepage: None,
+            license: None,
+            install_type: InstallType::Npm,
+            installer: None,
+            bin: bins,
+            architecture: Architecture {
+                x64: ArchitectureManifest {
+                    url: String::new(),
+                    hash: String::new(),
+                    extract_dir: None,
+                    bin: Vec::new(),
+                },
+            },
+            env: BTreeMap::new(),
+        }
     }
 }
